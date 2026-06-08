@@ -2,8 +2,17 @@
 
 This loader is complete — you do not modify it for the integration task.
 Bring up Fuseki via `docker compose up -d`, run this once, then run pytest.
+
+Auth: docker-compose.yml starts Fuseki with `ADMIN_PASSWORD: admin`, which
+locks write endpoints (including POST `/publications/data`) behind HTTP
+Basic Auth. The defaults below match the docker-compose credentials;
+override via FUSEKI_USER / FUSEKI_PASSWORD env vars if you change the
+compose file. The same defaults work in CI (the workflow's services.fuseki
+block sets ADMIN_PASSWORD=admin), so no env-var configuration is needed
+for local or CI runs.
 """
 
+import os
 import sys
 import time
 
@@ -12,6 +21,8 @@ import requests
 FUSEKI_DATA_URL = "http://localhost:3030/publications/data"
 FUSEKI_PING = "http://localhost:3030/$/ping"
 TTL_FILE = "data/publications.ttl"
+FUSEKI_USER = os.getenv("FUSEKI_USER", "admin")
+FUSEKI_PASSWORD = os.getenv("FUSEKI_PASSWORD", "admin")
 
 
 def wait_for_fuseki(timeout=60):
@@ -35,6 +46,7 @@ def main():
         FUSEKI_DATA_URL,
         data=payload,
         headers={"Content-Type": "text/turtle"},
+        auth=(FUSEKI_USER, FUSEKI_PASSWORD),
         timeout=30,
     )
     r.raise_for_status()

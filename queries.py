@@ -28,10 +28,15 @@ def q3():
     """Q3 — All author-coauthor pairs in canonical form.
 
     Variables in the SELECT: ?a ?b.
-    Required FILTER: FILTER (str(?a) < str(?b)) — without it the result
-    contains each pair twice and the autograder fails.
+
+    Two requirements (omit either and the row count is wrong):
+    1. `SELECT DISTINCT ?a ?b` — coauthors who share multiple papers
+       otherwise produce one row per shared paper (~230 rows on this
+       fixture); DISTINCT collapses them to one row per pair (~215).
+    2. `FILTER (str(?a) < str(?b))` — without it, each unordered pair
+       appears twice (a,b) and (b,a).
     """
-    # TODO: join two :authoredBy edges on the same paper; add the canonical FILTER.
+    # TODO: SELECT DISTINCT ?a ?b WHERE { ?p :authoredBy ?a, ?b . FILTER ... }
     return ""
 
 

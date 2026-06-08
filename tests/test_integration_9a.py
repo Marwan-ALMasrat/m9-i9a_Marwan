@@ -120,8 +120,10 @@ def test_q3_coauthor_pairs_canonical(g):
     rows = list(g.query(q3()))
     assert len(rows) == GOLD["q3_canonical_coauthor_pairs"], (
         f"q3 returned {len(rows)} rows; expected {GOLD['q3_canonical_coauthor_pairs']}. "
-        f"Most common bug: missing FILTER (str(?a) < str(?b)) yields ~2x rows; "
-        f"or self-pairs slipping through."
+        f"Common bugs: (a) missing SELECT DISTINCT — coauthors who share "
+        f"multiple papers produce one row per shared paper (~230 rows); "
+        f"(b) missing FILTER (str(?a) < str(?b)) — symmetric duplicates (~2x rows); "
+        f"(c) self-pairs slipping through."
     )
     seen = set()
     for a, b in rows:
@@ -236,4 +238,76 @@ def test_q7_matches_fuseki(g, fuseki_ready):
     fuseki_ccs = [int(b["cc"]["value"]) for b in fuseki_rows]
     assert local_ccs == fuseki_ccs, (
         f"q7 ordering disagrees between rdflib and Fuseki: {local_ccs} vs {fuseki_ccs}."
+    )
+
+
+# Round-trip coverage for the remaining SELECT queries. The integration's
+# stated goal is "run against the live Fuseki endpoint" — every query the
+# learner ships must execute on Fuseki, not only q1 and q7. A query that
+# uses an undeclared prefix (or any other Fuseki-rejected construct) passes
+# rdflib's permissive parser but fails on Fuseki — catching it here prevents
+# the learner's work from breaking in production.
+
+@pytest.mark.parametrize("name, fn", [
+    ("q2", q2), ("q3", q3), ("q4", q4), ("q8", q8),
+])
+def test_select_query_matches_fuseki(name, fn, g, fuseki_ready):
+    if not fuseki_ready:
+        pytest.skip("Fuseki not reachable.")
+    local_count = len(list(g.query(fn())))
+    fuseki_rows = _run_sparql(fn())["results"]["bindings"]
+    assert local_count == len(fuseki_rows), (
+        f"{name} row count disagrees between rdflib ({local_count}) and "
+        f"Fuseki ({len(fuseki_rows)}). Common cause: an undeclared PREFIX "
+        f"that rdflib tolerates but Fuseki rejects."
+    )
+
+
+def test_q5_ask_matches_fuseki(g, fuseki_ready):
+    if not fuseki_ready:
+        pytest.skip("Fuseki not reachable.")
+    local_bool = bool(g.query(q5()))
+    fuseki_bool = _run_sparql(q5()).get("boolean")
+    assert local_bool == fuseki_bool, (
+        f"q5 ASK disagrees: rdflib={local_bool}, Fuseki={fuseki_bool}."
+    )
+
+
+def test_q6_construct_matches_fuseki(g, fuseki_ready):
+    if not fuseki_ready:
+        pytest.skip("Fuseki not reachable.")
+    local_count = len(list(g.query(q6())))
+    fuseki_ttl = _run_sparql(q6(), accept="text/turtle")
+    fuseki_g = Graph()
+    fuseki_g.parse(data=fuseki_ttl, format="turtle")
+    assert local_count == len(fuseki_g), (
+        f"q6 CONSTRUCT triple count disagrees: rdflib={local_count}, "
+        f"Fuseki={len(fuseki_g)}. Both engines should emit the same subgraph."
+    )
+
+
+# ----------------------------- Deliverable check ------------------------------
+
+def test_learner_notes_filled():
+    """learner_notes.md is a required deliverable. The starter ships with
+    `_TODO_` placeholders in every section; submitting without filling
+    them is the same as not delivering the artifact. This test enforces
+    completion of the deliverable, not the quality of the notes (TA grades
+    quality)."""
+    notes_path = os.path.join(os.path.dirname(__file__), "..", "learner_notes.md")
+    assert os.path.exists(notes_path), (
+        "learner_notes.md is missing — it is a required deliverable. See the "
+        "integration guide for the template."
+    )
+    with open(notes_path, encoding="utf-8") as f:
+        text = f.read()
+    # The starter ships `_TODO …_` markers in every Intent and Result
+    # section. Any remaining `_TODO` token means the learner hasn't
+    # completed that section.
+    remaining = text.count("_TODO")
+    assert remaining == 0, (
+        f"learner_notes.md still contains {remaining} placeholder marker(s) "
+        f"(`_TODO …_`). Fill in every Intent and Result section for Q1–Q8 "
+        f"before submitting. The TA grades the quality of the notes; the "
+        f"autograder only verifies they are not left as placeholders."
     )
