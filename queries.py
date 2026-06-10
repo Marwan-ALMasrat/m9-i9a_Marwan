@@ -1,87 +1,105 @@
-"""Eight SPARQL queries against the publications ontology.
+"""Eight SPARQL queries against the publications ontology."""
 
-Each function returns a SPARQL query string. See learner_notes.md for the
-intent and result snapshot per query.
+PREFIX = """
+PREFIX : <http://example.org/pub#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 """
 
 
 def q1():
-    """Q1 — List all authors who have published at venue :NeurIPS.
-
-    Variables in the SELECT: ?author.
-    """
-    # TODO: SELECT distinct authors of papers where ?paper :publishedIn :NeurIPS.
-    return ""
+    """Q1 — List all authors who have published at venue :NeurIPS."""
+    return PREFIX + """
+SELECT DISTINCT ?author
+WHERE {
+    ?paper :authoredBy ?author ;
+           :publishedIn :NeurIPS .
+}
+"""
 
 
 def q2():
-    """Q2 — For each topic, count the number of papers on that topic.
-
-    Variables in the SELECT: ?topic ?n.
-    Use GROUP BY ?topic and COUNT(?paper) AS ?n.
-    """
-    # TODO: SELECT with GROUP BY topic.
-    return ""
+    """Q2 — For each topic, count the number of papers on that topic."""
+    return PREFIX + """
+SELECT ?topic (COUNT(?paper) AS ?n)
+WHERE {
+    ?paper :topic ?topic .
+}
+GROUP BY ?topic
+"""
 
 
 def q3():
-    """Q3 — All author-coauthor pairs in canonical form.
-
-    Variables in the SELECT: ?a ?b.
-
-    Two requirements (omit either and the row count is wrong):
-    1. `SELECT DISTINCT ?a ?b` — coauthors who share multiple papers
-       otherwise produce one row per shared paper (~230 rows on this
-       fixture); DISTINCT collapses them to one row per pair (~215).
-    2. `FILTER (str(?a) < str(?b))` — without it, each unordered pair
-       appears twice (a,b) and (b,a).
-    """
-    # TODO: SELECT DISTINCT ?a ?b WHERE { ?p :authoredBy ?a, ?b . FILTER ... }
-    return ""
+    """Q3 — All author-coauthor pairs in canonical form."""
+    return PREFIX + """
+SELECT DISTINCT ?a ?b
+WHERE {
+    ?paper :authoredBy ?a ;
+           :authoredBy ?b .
+    FILTER (?a != ?b)
+    FILTER (str(?a) < str(?b))
+}
+"""
 
 
 def q4():
-    """Q4 — Every paper and its DOI, DOI OPTIONAL.
-
-    Variables in the SELECT: ?paper ?doi.
-    The :doi triple must live inside OPTIONAL { ... } — putting it in the
-    main WHERE drops papers without a DOI.
-    """
-    # TODO: ?paper a :Paper . OPTIONAL { ?paper :doi ?doi } .
-    return ""
+    """Q4 — Every paper and its DOI, DOI OPTIONAL."""
+    return PREFIX + """
+SELECT ?paper ?doi
+WHERE {
+    ?paper a :Paper .
+    OPTIONAL { ?paper :doi ?doi }
+}
+"""
 
 
 def q5():
-    """Q5 — ASK whether any author has more than 10 papers.
-
-    Returns a boolean.
-    """
-    # TODO: ASK against a sub-SELECT that COUNTs papers per author with HAVING.
-    return ""
+    """Q5 — ASK whether any author has more than 10 papers."""
+    return PREFIX + """
+ASK {
+    SELECT ?author (COUNT(?p) AS ?paperCount)
+    WHERE {
+        ?p :authoredBy ?author .
+    }
+    GROUP BY ?author
+    HAVING (COUNT(?p) > 10)
+}
+"""
 
 
 def q6():
-    """Q6 — CONSTRUCT a graph of 2023 papers and their authors.
-
-    Returns triples ?paper :authoredBy ?author for papers with :year 2023.
-    """
-    # TODO: CONSTRUCT { ... } WHERE { ?paper :year 2023 ; :authoredBy ?author }
-    return ""
+    """Q6 — CONSTRUCT a graph of 2023 papers and their authors."""
+    return PREFIX + """
+CONSTRUCT {
+    ?paper :authoredBy ?author .
+}
+WHERE {
+    ?paper a :Paper ;
+           :year 2023 ;
+           :authoredBy ?author .
+}
+"""
 
 
 def q7():
-    """Q7 — Top 5 most-cited papers by literal :citationCount, DESC.
-
-    Variables in the SELECT: ?paper ?cc.
-    """
-    # TODO: ORDER BY DESC(?cc) LIMIT 5 against ?paper :citationCount ?cc.
-    return ""
+    """Q7 — Top 5 most-cited papers by literal :citationCount, DESC."""
+    return PREFIX + """
+SELECT ?paper ?cc
+WHERE {
+    ?paper :citationCount ?cc .
+}
+ORDER BY DESC(?cc)
+LIMIT 5
+"""
 
 
 def q8():
-    """Q8 — Authors whose name matches "Hinton" via skos:prefLabel OR skos:altLabel.
-
-    Variables in the SELECT: ?author.
-    """
-    # TODO: union of prefLabel / altLabel matches on "Hinton".
-    return ""
+    """Q8 — Authors whose name matches "Hinton" via skos:prefLabel OR skos:altLabel."""
+    return PREFIX + """
+SELECT DISTINCT ?author
+WHERE {
+    ?author ?label "Hinton" .
+    FILTER (?label = skos:prefLabel || ?label = skos:altLabel)
+}
+"""
