@@ -1,7 +1,7 @@
 """Eight SPARQL queries against the publications ontology."""
 
 PREFIX = """
-PREFIX : <http://example.org/pub#>
+PREFIX : <http://aispire.example.org/publications/>
 PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
